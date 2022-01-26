@@ -1,4 +1,5 @@
 from math import floor
+from tabnanny import check
 import numpy as np
 import random as rd
 import matplotlib.pyplot  as plt
@@ -45,7 +46,7 @@ def modulation(bit_signal, bit_rate, f_s):
 
     return f0, f1, total_time, y
 
-def demodulation(f0, f1, t, bit_signal, modulated_signal, bit_rate, f_s):
+def demodulation(f0, f1, t, modulated_signal, bit_rate, f_s):
     """Función que demodula una señal de entrada FSK.
     Args:
         f0 (int): freq. de portadora para símbolo 0
@@ -80,15 +81,15 @@ def demodulation(f0, f1, t, bit_signal, modulated_signal, bit_rate, f_s):
     s1 = np.abs(s1)
 
 
-    # plt.subplot(3, 1, 1)
-    # plt.plot(t, modulated_signal)
+    plt.subplot(3, 1, 1)
+    plt.plot(t, modulated_signal)
 
-    # plt.subplot(3, 1, 2)
-    # plt.plot(t, s0)
+    plt.subplot(3, 1, 2)
+    plt.plot(t, s0)
 
-    # plt.subplot(3, 1, 3)
-    # plt.plot(t, s1)
-    # plt.show()
+    plt.subplot(3, 1, 3)
+    plt.plot(t, s1)
+    plt.show()
 
     out = []
     step = len(c0)
@@ -100,9 +101,6 @@ def demodulation(f0, f1, t, bit_signal, modulated_signal, bit_rate, f_s):
             out.append(0)
         i += step
 
-    # print(bit_signal)
-    # print(out)
-    # print("Resultado de demodulacion: ", out == bit_signal)
 
     return out
 
@@ -119,22 +117,21 @@ def awgn(SNR_rate, modulated_signal, t):
     rng = np.random.default_rng()
     noise = sigma*rng.standard_normal(len(modulated_signal))
 
-    # plt.plot(t, noise)
-    # plt.show()
-    # plt.clf()
     out = np.add(modulated_signal, noise)
 
     return out
 
 def check_errors(original_bits, demod_bits):
-    count = 0
-    for i in range(len(original_bits)):
-        if original_bits[i] != demod_bits[i]:
-            count += 1
+    count = np.sum(np.array(original_bits) != np.array(demod_bits))
+    return count/len(original_bits)
 
-    print(count)
-    bit_error_rate = count/len(original_bits) # fallos entre total de bits
-    return bit_error_rate
+
+def plot_time(t, y, title, filename):
+    plt.plot(t, y)
+    plt.title(title)
+    plt.show()
+    #plt.savefig(filename + ".png")
+    plt.clf()
 
 if __name__ == '__main__':
     # parte 1, 2 3
@@ -143,38 +140,49 @@ if __name__ == '__main__':
     f_s = 22050 
     bit_signal = [1, 1, 1, 0, 1, 0, 1, 0, 0, 1] # pequeña muestra
     f0, f1, t, modulated_signal = modulation(bit_signal, bit_rate, f_s)
-    out_test = demodulation(f0, f1, t, bit_signal, modulated_signal, bit_rate, f_s)
 
+    plot_time(t, modulated_signal, "Señal Modulada (largo pequeño)", "mod10")
 
-    noise_signal = awgn(3, modulated_signal, t) # 3 dB
-    plt.subplot(2, 1, 1)
-    plt.plot(t, modulated_signal)
-    plt.subplot(2, 1, 2)
-    plt.plot(t, noise_signal)
-    plt.show()
-    plt.clf()
+    out_test = demodulation(f0, f1, t, modulated_signal, bit_rate, f_s)
+
+    if out_test == bit_signal: # Se prueba demodulando sin ruido
+        print("Demod. correcta.")
+
+    noise_signal = awgn(-1, modulated_signal, t) # 3 dB
+    out_test = demodulation(f0, f1, t, noise_signal, bit_rate, f_s)
+
+    if out_test == bit_signal: # Se prueba demodulando con ruido
+        print("Demod. correcta.")
+
+    plot_time(t, noise_signal, "Señal Ruidosa (largo pequeño)", "ruidomod10")
 
     # Simulacion (4)
 
-    bit_rates = [300] # [100, 200, 300]
-    db_ranges = [i for i in range(-2, 9) if i != 0] # se excluye el 0 y 9
-    random_bits = get_random_bits(10000)
+    #print(check_errors([0, 1, 1, 1], [1, 1, 1, 1]))
 
-    errors = []
-    outer_t0 = time.time()
-    for bit_rate in bit_rates:
-        errs = []
-        for db in db_ranges:
-            f0, f1, t, modulated_signal = modulation(random_bits, bit_rate, f_s)
-            noise_signal = awgn(db, modulated_signal, t)
+    # bit_rates = [300] # [100, 200, 300]
+    # # db_ranges = [i for i in range(-2, 9) if i != 0]  se excluye el 0 y 9
+    # db_ranges = [-2.0, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5]
 
-            out_test = demodulation(f0, f1, t, random_bits, noise_signal, bit_rate, f_s)
+    # random_bits = get_random_bits(10**5)
 
-            ber = check_errors(random_bits, out_test)
-            errs.append(ber)
+    # errors = []
+    # outer_t0 = time.time()
+    # for bit_rate in bit_rates:
+    #     errs = []
+    #     for db in db_ranges:
+    #         f0, f1, t, modulated_signal = modulation(random_bits, bit_rate, f_s)
+    #         noise_signal = awgn(db, modulated_signal, t)
 
-        errors.append(errs)
+    #         out_test = demodulation(f0, f1, t, random_bits, noise_signal, bit_rate, f_s)
 
-    outer_t1 = time.time()
-    print("t = ", outer_t1 - outer_t0)
-    print(errors)
+    #         ber = check_errors(random_bits, out_test)
+    #         errs.append(ber)
+
+    #     errors.append(errs)
+
+    # outer_t1 = time.time()
+    # print("t = ", outer_t1 - outer_t0)
+    # for err in errors:
+    #     print(err)
+
