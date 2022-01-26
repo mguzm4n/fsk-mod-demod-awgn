@@ -3,6 +3,7 @@ import numpy as np
 import random as rd
 import matplotlib.pyplot  as plt
 from scipy import signal, fftpack
+import time
 
 def test():
     bit_signal = get_random_bits(100000) # prueba de 10**5
@@ -99,20 +100,21 @@ def demodulation(f0, f1, t, bit_signal, modulated_signal, bit_rate, f_s):
             out.append(0)
         i += step
 
-    print(bit_signal)
-    print(out)
-    print("Resultado de demodulacion: ", out == bit_signal)
+    # print(bit_signal)
+    # print(out)
+    # print("Resultado de demodulacion: ", out == bit_signal)
 
-    return None
+    return out
 
 
 def awgn(SNR_rate, modulated_signal, t):
     p_signal = sum(np.abs(modulated_signal)**2)/(2*len(modulated_signal) + 1)
     linear_snr = 10**(SNR_rate/10)
     sigma = np.sqrt(p_signal/linear_snr)
-    print(linear_snr)
-    print(p_signal)
-    print(sigma)
+
+    # print(linear_snr)
+    # print(p_signal)
+    # print(sigma)
 
     rng = np.random.default_rng()
     noise = sigma*rng.standard_normal(len(modulated_signal))
@@ -124,13 +126,25 @@ def awgn(SNR_rate, modulated_signal, t):
 
     return out
 
+def check_errors(original_bits, demod_bits):
+    count = 0
+    for i in range(len(original_bits)):
+        if original_bits[i] != demod_bits[i]:
+            count += 1
+
+    print(count)
+    bit_error_rate = count/len(original_bits) # fallos entre total de bits
+    return bit_error_rate
+
 if __name__ == '__main__':
+    # parte 1, 2 3
+
     bit_rate = 300 # 300 bps
     f_s = 22050 
-    bit_signal = get_random_bits(5)
-    print(bit_signal)
+    bit_signal = [1, 1, 1, 0, 1, 0, 1, 0, 0, 1] # pequeña muestra
     f0, f1, t, modulated_signal = modulation(bit_signal, bit_rate, f_s)
-    # demodulation(f0, f1, t, bit_signal, modulated_signal, bit_rate, f_s)
+    out_test = demodulation(f0, f1, t, bit_signal, modulated_signal, bit_rate, f_s)
+
 
     noise_signal = awgn(3, modulated_signal, t) # 3 dB
     plt.subplot(2, 1, 1)
@@ -138,3 +152,29 @@ if __name__ == '__main__':
     plt.subplot(2, 1, 2)
     plt.plot(t, noise_signal)
     plt.show()
+    plt.clf()
+
+    # Simulacion (4)
+
+    bit_rates = [300] # [100, 200, 300]
+    db_ranges = [i for i in range(-2, 9) if i != 0] # se excluye el 0 y 9
+    random_bits = get_random_bits(10000)
+
+    errors = []
+    outer_t0 = time.time()
+    for bit_rate in bit_rates:
+        errs = []
+        for db in db_ranges:
+            f0, f1, t, modulated_signal = modulation(random_bits, bit_rate, f_s)
+            noise_signal = awgn(db, modulated_signal, t)
+
+            out_test = demodulation(f0, f1, t, random_bits, noise_signal, bit_rate, f_s)
+
+            ber = check_errors(random_bits, out_test)
+            errs.append(ber)
+
+        errors.append(errs)
+
+    outer_t1 = time.time()
+    print("t = ", outer_t1 - outer_t0)
+    print(errors)
